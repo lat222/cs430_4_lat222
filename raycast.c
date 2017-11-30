@@ -427,7 +427,7 @@ void read_file(FILE* fp)
 							// property_read_in: c = color, p = position, r = radius, e = reflectivity, a = refractivity, i = ior,
 							//					 n = normal, f = diffuse color, s = specular color, t = theta, 0 = radial-a0,
 							//					 1 = radial-a1, 2 = radial-a2, 3 = angular-a0, d = direction
-							if(strcmp(token,"color") == 0 && property_read_in == '\0')
+							if(strcmp(token,"color") == 0 && property_read_in == '\0' && object_read_in == 'l')
 							{
 								if(vectorNum == 3) vectorNum = 0;
 								else
@@ -551,10 +551,10 @@ void read_file(FILE* fp)
 								else
 								{
 									// malloc the space to add the pixel if nothing has been stored yet
-									if(vectorNum == 0) object->pix = malloc(sizeof(double)*3);
+									if(vectorNum == 0) light->pix = malloc(sizeof(double)*3);
 									if(vectorNum == 2) property_read_in = '\0';
 									// check that the value is valid and store it if it is
-									if(strcmp(token,"0") == 0 || atof(token) > 0) object->pix[vectorNum++] = atof(token);
+									if(strcmp(token,"0") == 0 || atof(token) > 0) light->pix[vectorNum++] = atof(token);
 									else
 									{
 										fprintf(stderr, "ERROR: Values for the Color Property must be positive numbers.\n");
@@ -572,10 +572,18 @@ void read_file(FILE* fp)
 								else
 								{
 									// malloc the space to add the pixel if nothing has been stored yet
-									if(vectorNum == 0) object->position = malloc(sizeof(double)*3);
+									if(vectorNum == 0) 
+									{
+										if(object_read_in != 'l') object->position = malloc(sizeof(double)*3);
+										else light->position = malloc(sizeof(double)*3);
+									}
 									if(vectorNum == 2) property_read_in = '\0';
 									// check that the value is valid and store it if it is
-									if(strcmp(token,"0") == 0 || atof(token) != 0) object->position[vectorNum++] = atof(token);
+									if(strcmp(token,"0") == 0 || atof(token) != 0) 
+									{
+										if(object_read_in != 'l') object->position[vectorNum++] = atof(token);
+										else light->position[vectorNum++] = atof(token);
+									}
 									else
 									{
 										fprintf(stderr, "ERROR: Values for the Position Property must be numbers.\n");

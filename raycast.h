@@ -44,6 +44,8 @@ typedef struct Object
 
 typedef struct Light 
 {
+	V3 position;
+	V3 pix;
 	double radialA0;
 	double radialA1;
 	double radialA2;
@@ -51,14 +53,14 @@ typedef struct Light
 	double angularA0;
 	V3 direction;
 	V3 color;
-}
+} Light;
 
 
 // Global variables
 Object* objects[maxObjects];
 int objectCount;
 
-Object* lights[maxObjects];
+Light* lights[maxObjects];
 int lightCount;
 
 Pixel* pixMap;
