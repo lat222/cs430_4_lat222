@@ -31,19 +31,28 @@ typedef struct Pixel {
 typedef struct Object
 {
 	char type;
-	V3 pix;
 	V3 position;
 	V3 normal;
-	int radius;
+	double radius;
 	V3 diffuse_color;
 	V3 specular_color;
+	double rflec;
+	double rfrac;
+	double ior;
+	
+} Object;
+
+typedef struct Light 
+{
 	double radialA0;
 	double radialA1;
 	double radialA2;
 	double theta;
 	double angularA0;
 	V3 direction;
-} Object;
+	V3 color;
+}
+
 
 // Global variables
 Object* objects[maxObjects];

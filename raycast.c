@@ -388,6 +388,7 @@ void read_file(FILE* fp)
 		int propertiesAdded = 0;
 		int vectorNum = 3; // set this to three to start with to work with code that will check that this is 3
 		Object* object = (Object*) malloc(sizeof(Object));
+		Light* light = (Light*) malloc(sizeof(Light));
 		if(objectCount != 128)
 		{
 			char* token = strtok(line," ,\t:[]");
@@ -413,7 +414,6 @@ void read_file(FILE* fp)
 							}
 							else if(strcmp(token,"light") == 0)
 							{
-								object->type = 'l';
 								object_read_in = 'l';
 							}
 							else
@@ -424,8 +424,9 @@ void read_file(FILE* fp)
 						}
 						else
 						{
-							// property_read_in: c = color, p = position, r = radius, n = normal, f = diffuse color, s = specular color, 
-							// t = theta, 0 = radial-a0, 1 = radial-a1, 2 = radial-a2, 3 = angular-a0, d = direction
+							// property_read_in: c = color, p = position, r = radius, e = reflectivity, a = refractivity, i = ior,
+							//					 n = normal, f = diffuse color, s = specular color, t = theta, 0 = radial-a0,
+							//					 1 = radial-a1, 2 = radial-a2, 3 = angular-a0, d = direction
 							if(strcmp(token,"color") == 0 && property_read_in == '\0')
 							{
 								if(vectorNum == 3) vectorNum = 0;
@@ -451,6 +452,21 @@ void read_file(FILE* fp)
 							else if(strcmp(token,"radius") == 0 && object_read_in == 's' && property_read_in == '\0')
 							{
 								property_read_in = 'r';
+								propertiesAdded++;
+							}
+							else if(strcmp(token,"reflectivity") == 0 && property_read_in == '\0' && object_read_in != 'l')
+							{
+								property_read_in = 'e';
+								propertiesAdded++;
+							}
+							else if(strcmp(token,"refractivity") == 0 && property_read_in == '\0' && object_read_in != 'l')
+							{
+								property_read_in = 'a';
+								propertiesAdded++;
+							}
+							else if(strcmp(token,"ior") == 0 && property_read_in == '\0' && object_read_in != 'l')
+							{
+								property_read_in = 'i';
 								propertiesAdded++;
 							}
 							else if(strcmp(token,"normal") == 0 && object_read_in == 'p' && property_read_in == '\0')
@@ -522,6 +538,9 @@ void read_file(FILE* fp)
 								property_read_in = 'd';
 								propertiesAdded++;
 							}	
+							// property_read_in: c = color, p = position, r = radius, e = reflectivity, a = refractivity, i = ior,
+							//					 n = normal, f = diffuse color, s = specular color, t = theta, 0 = radial-a0,
+							//					 1 = radial-a1, 2 = radial-a2, 3 = angular-a0, d = direction
 							else if(property_read_in == 'c')
 							{
 								if(vectorNum >= 3)
@@ -597,6 +616,36 @@ void read_file(FILE* fp)
 								}
 								property_read_in = '\0';
 							}
+							else if(property_read_in == 'e')
+							{
+								if(strcmp(token,"0") == 0 || (atof(token) > 0 && atof(token) < 1)) object->rflec = atof(token);
+								else
+								{
+									fprintf(stderr, "ERROR: Values for the Reflectivity Property must be positive numbers between 0 and 1.\n");
+									exit(0);
+								}
+								property_read_in = '\0';
+							}
+							else if(property_read_in == 'a')
+							{
+								if(strcmp(token,"0") == 0 || (atof(token) > 0 && atof(token) < 1)) object->rfrac = atof(token);
+								else
+								{
+									fprintf(stderr, "ERROR: Values for the Refractivity Property must be positive numbers between 0 and 1.\n");
+									exit(0);
+								}
+								property_read_in = '\0';
+							}
+							else if(property_read_in == 'i')
+							{
+								if(strcmp(token,"0") == 0 || atof(token) > 0) object->ior = atof(token);
+								else
+								{
+									fprintf(stderr, "ERROR: Values for the ior Property must be positive numbers.\n");
+									exit(0);
+								}
+								property_read_in = '\0';
+							}
 							else if(property_read_in == 'f')
 							{
 								if(vectorNum >= 3)
@@ -639,25 +688,26 @@ void read_file(FILE* fp)
 									}	
 							}
 							}
+							/*LIGHT PROPERTIES SECTION*/
 							else if(property_read_in == 't')
 							{
 								if(strcmp(token,"0") == 0 || atof(token) != 0) 
 								{
-									object->theta = atof(token);
-									if(object->theta == 0)
+									light->theta = atof(token);
+									if(light->theta == 0)
 									{
-										object->angularA0 = INFINITY;
-										object->direction = malloc(sizeof(double)*3);
-										object->direction[0] = INFINITY;
-										object->direction[0] = INFINITY;
-										object->direction[0] = INFINITY;
+										light->angularA0 = INFINITY;
+										light->direction = malloc(sizeof(double)*3);
+										light->direction[0] = INFINITY;
+										light->direction[0] = INFINITY;
+										light->direction[0] = INFINITY;
 										propertiesAdded += 2;
 									}
 									else
 									{
-										object->radialA0 = 0;
-										object->radialA1 = 0;
-										object->radialA2 = 0;
+										light->radialA0 = 0;
+										light->radialA1 = 0;
+										light->radialA2 = 0;
 										propertiesAdded += 3;
 									}
 
@@ -671,7 +721,7 @@ void read_file(FILE* fp)
 							}
 							else if(property_read_in == '0')
 							{
-								if(strcmp(token,"0") == 0 || atof(token) != 0) object->radialA0 = atof(token);
+								if(strcmp(token,"0") == 0 || atof(token) != 0) light->radialA0 = atof(token);
 								else
 								{
 									fprintf(stderr, "ERROR: Values for the Radial-a0 Property must be numbers.\n");
@@ -681,7 +731,7 @@ void read_file(FILE* fp)
 							}
 							else if(property_read_in == '1')
 							{
-								if(strcmp(token,"0") == 0 || atof(token) != 0) object->radialA1 = atof(token);
+								if(strcmp(token,"0") == 0 || atof(token) != 0) light->radialA1 = atof(token);
 								else
 								{
 									fprintf(stderr, "ERROR: Values for the Radial-a1 Property must be numbers.\n");
@@ -691,7 +741,7 @@ void read_file(FILE* fp)
 							}
 							else if(property_read_in == '2')
 							{
-								if(strcmp(token,"0") == 0 || atof(token) != 0) object->radialA2 = atof(token);
+								if(strcmp(token,"0") == 0 || atof(token) != 0) light->radialA2 = atof(token);
 								else
 								{
 									fprintf(stderr, "ERROR: Values for the Radial-a2 Property must be numbers.\n");
@@ -701,7 +751,7 @@ void read_file(FILE* fp)
 							}
 							else if(property_read_in == '3')
 							{
-								if(strcmp(token,"0") == 0 || atof(token) != 0) object->angularA0 = atof(token);
+								if(strcmp(token,"0") == 0 || atof(token) != 0) light->angularA0 = atof(token);
 								else
 								{
 									fprintf(stderr, "ERROR: Values for the Angular-a0 Property must be numbers.\n");
@@ -719,10 +769,10 @@ void read_file(FILE* fp)
 								else
 								{
 									// malloc the space to add the pixel if nothing has been stored yet 
-									if(vectorNum == 0) object->direction = malloc(sizeof(double)*3);
+									if(vectorNum == 0) light->direction = malloc(sizeof(double)*3);
 									if(vectorNum == 2) property_read_in = '\0';
 									// check that the value is valid and store it if it is
-									if(strcmp(token,"0") == 0 || atof(token) != 0) object->direction[vectorNum++] = atof(token);
+									if(strcmp(token,"0") == 0 || atof(token) != 0) light->direction[vectorNum++] = atof(token);
 									else
 									{
 										fprintf(stderr, "ERROR: Values for the Direction Property must be numbers.");
@@ -740,19 +790,27 @@ void read_file(FILE* fp)
 				}
 				token = strtok(NULL," ,\t:[]");
 			}
-			if(propertiesAdded != 4 && object->type != 'l')
+			if(propertiesAdded < 4 && object_read_in != 'l')
 			{
-				fprintf(stderr, "ERROR: Five properties (specular_color,diffuse_color,position, and radius or normal) should have been read in for sphere or plane object\n");
+				fprintf(stderr, "ERROR: At least four properties (specular_color,diffuse_color,position, and radius or normal) should have been read in for sphere or plane object\n");
 				exit(0);
 			}
-			else if(propertiesAdded != 8 && object->type == 'l')
+			else if(propertiesAdded != 8 && object_read_in == 'l')
 			{
 				fprintf(stderr, "ERROR: Light object does not have the correct number of properties\n");
 				exit(0);
 			}
 			// store the object depending on its type
-			if(object->type == 'l') lights[lightCount++] = object;
-			else objects[objectCount++] = object;
+			if(object_read_in == 'l') 
+			{
+				lights[lightCount++] = light;
+				free(object);
+			}
+			else 
+			{
+				objects[objectCount++] = object;
+				free(light);
+			}
 		}
 		else
 		{
@@ -761,6 +819,7 @@ void read_file(FILE* fp)
 		}
 	}
 }
+
 
 int count_char_in_string(char* inString, char charToCount)
 {
