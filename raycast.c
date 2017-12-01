@@ -67,8 +67,7 @@ Pixel* raycast(FILE* fp, int width, int height)
 				V3 hitPoint = v3_scale(ur,lowestT);
 				hitPoint = v3_add(r0,hitPoint);
 
-				// V3 color = shade(hitObjectIndex,hitPoint,ur,0)
-				V3 color = local_illumination(hitObjectIndex,r0,ur);
+				V3 color = shade(hitObjectIndex,hitPoint,ur,0)
 
 				//pixMap[rowCounter*height+columnCounter] = malloc(sizeof(Pixel));
 				pixMap[rowCounter*height+columnCounter].R = color[0];
@@ -110,62 +109,72 @@ int shoot(V3 rayVector)
 
 V3 shade(int objectIndex, V3 hitPoint, V3 ur, int level)
 {
-	if(level > maxRecursionLevel)
+	color = malloc(sizeof(double)*3);
+	color[0] = backgroundColorR*ambientIntensity; // ambient color R;
+	color[1] = backgroundColorG*ambientIntensity; // ambient color G;
+	color[2] = backgroundColorB*ambientIntensity; // ambient color B;
+
+	if(level > maxRecursionLevel) // can't recurse anymore so return background color
 	{
-		V3 backgroundColor = malloc(sizeof(double)*3);
-		backgroundColor[0] = backgroundColorR*ambientIntensity; // ambient color R;
-    	backgroundColor[1] = backgroundColorG*ambientIntensity; // ambient color G;
-    	backgroundColor[2] = backgroundColorB*ambientIntensity; // ambient color B;
-		return backgroundColor;
+		return color;
 	}
+
 	else
 	{
-		V3 um = reflection_vector(hitPoint, objectIndex, ur);
+		// add to the color the local illumination
+		color = v3_add(color,local_illumination(hitPoint,objectIndex));
 
-		// call shoot but still access t
-		int hitObjectIndex = -1; // no object hit so the index is a negative or impossible one
-		double lowestT = INFINITY; // no intersection so far
-		// loop through the entire linked list of objects and set t to the closest intersected object
-		for(int i = 0; i < objectCount; i++ )
+		// check if the object is reflective
+		if(objects[objectIndex]->rflec > 0.0)
 		{
-			double result = INFINITY;
-			// check if the object intersects with the vector
-			if(objects[i]->type == 's') result = ray_sphere_intersection(ur,objects[i]);
-			else if(objects[i]->type == 'p') result = ray_plane_intersection(ur,objects[i]);
+			V3 um = reflection_vector(hitPoint, objectIndex, ur);
+
+			// call shoot but still access t
+			int hitObjectIndex = -1; // no object hit so the index is a negative or impossible one
+			double lowestT = INFINITY; // no intersection so far
+			// loop through the entire linked list of objects and set t to the closest intersected object
+			for(int i = 0; i < objectCount; i++ )
+			{
+				double result = INFINITY;
+				// check if the object intersects with the vector
+				if(objects[i]->type == 's') result = ray_sphere_intersection(ur,objects[i]);
+				else if(objects[i]->type == 'p') result = ray_plane_intersection(ur,objects[i]);
+				else
+				{
+					fprintf(stderr, "ERROR: Objects can only be type sphere, plane, or light\n");
+					exit(0);
+				}
+
+				if(result > 0 && (result < lowestT || lowestT == INFINITY))	// this intersection is less than t is already so set t to this result and set hitobject to this object
+				{
+					lowestT = result;
+					hitObjectIndex = i;
+				}
+			}
+
+			// check if t is INFINITY, which means nothing was hit.
+			if(lowestT == INFINITY)
+			{// nothing was hit so add the background color to the color
+				color[0] += backgroundColorR;
+				color[1] += backgroundColorG;
+				color[2] += backgroundColorB;
+			}
 			else
 			{
-				fprintf(stderr, "ERROR: Objects can only be type sphere, plane, or light\n");
-				exit(0);
+				V3 new_hitPoint = v3_add(hitPoint,v3_scale(um,lowestT));
+				// recursive call to shade to get new_hitPoint color
+				V3 m_color = shade(hitObjectIndex, new_hitPoint, um, level++);
+				m_color = v3_scale(m_color,objects[objectIndex]->rflec); // scale the color by the object's reflectivity
+				// based on the reflected color above add shading
+				color = v3_add(color,directshade(objectIndex, hitPoint, ur, m_color, v3_scale(um,-1)));
+				// add the reflected color
+				color = v3_add(color,m_color)
 			}
-
-			if(result > 0 && (result < lowestT || lowestT == INFINITY))	// this intersection is less than t is already so set t to this result and set hitobject to this object
-			{
-				lowestT = result;
-				hitObjectIndex = i;
-			}
 		}
 
-		V3 color;
-
-		// check if t is INFINITY, which means nothing was hit.
-		if(lowestT == INFINITY)
+		if(objects[objectIndex]->rfrac > 0.0)
 		{
-			color = malloc(sizeof(double)*3);
-			color[0] = backgroundColorR*ambientIntensity; // ambient color R;
-	    	color[1] = backgroundColorG*ambientIntensity; // ambient color G;
-	    	color[2] = backgroundColorB*ambientIntensity; // ambient color B;
-		}
-		else
-		{
-			V3 new_hitPoint = v3_add(hitPoint,v3_scale(um,lowestT));
-			V3 m_color = shade(hitObjectIndex, new_hitPoint, um, level++);
-			color = directshade(objectIndex, hitPoint, ur, m_color, v3_scale(um,-1));
-		}
-		// Has to do with illumination....
-		for(int j = 0; j < lightCount; j++)
-		{
-			//if(light i is visible from x)
-			color = v3_add(color,directshade(objectIndex, hitPoint, ur, lights[j]->color,lights[j]->direction));
+			// add to color based on refractivity
 		}
 		return color;
 	}
@@ -925,6 +934,11 @@ void read_file(FILE* fp)
 			{
 				fprintf(stderr, "ERROR: At least four properties (specular_color,diffuse_color,position, and radius or normal) should have been read in for sphere or plane object\n");
 				exit(0);
+			}
+			else if(propertiesAdded == 4 && object_read_in != 'l') // need to set rfrac and rflec to 0
+			{
+				object->rflec = 0.0;
+				object->rfrac = 0.0;
 			}
 			else if(propertiesAdded != 8 && object_read_in == 'l')
 			{
