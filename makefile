@@ -3,7 +3,7 @@ DEBUG = -g
 CFLAGS = -Wall -std=c99 -c
 LFLAGS = -Wall -std=c99
 
-raycast : mainprog.o ppmformatter.o raycast.o
+raytrace : mainprog.o ppmformatter.o raycast.o
 	$(CC) $(LFLAGS) mainprog.o ppmformatter.o raycast.o -o raycast
 
 mainprog.o : mainprog.c ppmformatter.h raycast.h
