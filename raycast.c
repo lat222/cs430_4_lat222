@@ -31,7 +31,6 @@ Pixel* raycast(FILE* fp, int width, int height)
 			double px = cameraX - worldWidth / 2 + pixwidth * (columnCounter + 0.5); // x coord of column
 			double pz = cameraZ-1; // z coord is on screen
 			V3 ur = v3_unit(px,py,pz); // unit ray vector
-			int hitObjectIndex = -1; // no object hit so the index is a negative or impossible one
 
 			// does shoot() but allows to still access t afterwards
 			int hitObjectIndex = -1;
@@ -41,8 +40,8 @@ Pixel* raycast(FILE* fp, int width, int height)
 			{
 				double result = INFINITY;
 				// check if the object intersects with the vector
-				if(objects[i]->type == 's') result = ray_sphere_intersection(rayVector,objects[i]);
-				else if(objects[i]->type == 'p') result = ray_plane_intersection(rayVector,objects[i]);
+				if(objects[i]->type == 's') result = ray_sphere_intersection(ur,objects[i]);
+				else if(objects[i]->type == 'p') result = ray_plane_intersection(ur,objects[i]);
 				else
 				{
 					fprintf(stderr, "ERROR: Objects can only be type sphere, plane, or light\n");
@@ -58,23 +57,23 @@ Pixel* raycast(FILE* fp, int width, int height)
 	
 			if(hitObjectIndex == -1) // did not hit anything so make pixels the backgroun color
 			{
-				pixMap[rowCounter*height+columnCounter] = malloc(sizeof(double)*3);
-				pixMap[rowCounter*height+columnCounter][0] = backgroundColorR*ambientIntensity;
-				pixMap[rowCounter*height+columnCounter][1] = backgroundColorG*ambientIntensity;
-				pixMap[rowCounter*height+columnCounter][2] = backgroundColorB*ambientIntensity;
+				//pixMap[rowCounter*height+columnCounter] = (Pixel*) malloc(sizeof(Pixel));
+				pixMap[rowCounter*height+columnCounter].R = backgroundColorR*ambientIntensity;
+				pixMap[rowCounter*height+columnCounter].G = backgroundColorG*ambientIntensity;
+				pixMap[rowCounter*height+columnCounter].B = backgroundColorB*ambientIntensity;
 			}
 			else
 			{
 				V3 hitPoint = v3_scale(ur,lowestT);
-				hitpoint = v3_dot(r0,hitPoint);
+				hitPoint = v3_add(r0,hitPoint);
 
 				// V3 color = shade(hitObjectIndex,hitPoint,ur,0)
 				V3 color = local_illumination(hitObjectIndex,r0,ur);
 
-				pixMap[rowCounter*height+columnCounter] = malloc(sizeof(double)*3);
-				pixMap[rowCounter*height+columnCounter][0] = color[0];
-				pixMap[rowCounter*height+columnCounter][1] = color[1];
-				pixMap[rowCounter*height+columnCounter][2] = color[2];
+				//pixMap[rowCounter*height+columnCounter] = malloc(sizeof(Pixel));
+				pixMap[rowCounter*height+columnCounter].R = color[0];
+				pixMap[rowCounter*height+columnCounter].G = color[1];
+				pixMap[rowCounter*height+columnCounter].B = color[2];
 			}
 		}
     }
@@ -109,11 +108,11 @@ int shoot(V3 rayVector)
 	return hitObjectIndex; // should only be a postive number or -1
 }
 
-V3 shade(int objectIndex, V3 x, V3 ur, int level)
+V3 shade(int objectIndex, V3 hitPoint, V3 ur, int level)
 {
 	if(level > maxRecursionLevel)
 	{
-		backgroundColor = malloc(sizeof(double)*3);
+		V3 backgroundColor = malloc(sizeof(double)*3);
 		backgroundColor[0] = backgroundColorR*ambientIntensity; // ambient color R;
     	backgroundColor[1] = backgroundColorG*ambientIntensity; // ambient color G;
     	backgroundColor[2] = backgroundColorB*ambientIntensity; // ambient color B;
@@ -121,26 +120,71 @@ V3 shade(int objectIndex, V3 x, V3 ur, int level)
 	}
 	else
 	{
-		um = reflection vector(x, o, ur);
-		t = shoot(x, um);
-		if(t == -1)
+		V3 um = reflection_vector(hitPoint, objectIndex, ur);
+
+		// call shoot but still access t
+		int hitObjectIndex = -1; // no object hit so the index is a negative or impossible one
+		double lowestT = INFINITY; // no intersection so far
+		// loop through the entire linked list of objects and set t to the closest intersected object
+		for(int i = 0; i < objectCount; i++ )
 		{
-			backgroundColor = malloc(sizeof(double)*3);
-			backgroundColor[0] = backgroundColorR*ambientIntensity; // ambient color R;
-	    	backgroundColor[1] = backgroundColorG*ambientIntensity; // ambient color G;
-	    	backgroundColor[2] = backgroundColorB*ambientIntensity; // ambient color B;
-			return backgroundColor;
+			double result = INFINITY;
+			// check if the object intersects with the vector
+			if(objects[i]->type == 's') result = ray_sphere_intersection(ur,objects[i]);
+			else if(objects[i]->type == 'p') result = ray_plane_intersection(ur,objects[i]);
+			else
+			{
+				fprintf(stderr, "ERROR: Objects can only be type sphere, plane, or light\n");
+				exit(0);
+			}
+
+			if(result > 0 && (result < lowestT || lowestT == INFINITY))	// this intersection is less than t is already so set t to this result and set hitobject to this object
+			{
+				lowestT = result;
+				hitObjectIndex = i;
+			}
+		}
+
+		V3 color;
+
+		// check if t is INFINITY, which means nothing was hit.
+		if(lowestT == INFINITY)
+		{
+			color = malloc(sizeof(double)*3);
+			color[0] = backgroundColorR*ambientIntensity; // ambient color R;
+	    	color[1] = backgroundColorG*ambientIntensity; // ambient color G;
+	    	color[2] = backgroundColorB*ambientIntensity; // ambient color B;
 		}
 		else
 		{
-			m color = shade(om, x + t * um, um, level + 1);
-			color = directshade(o, x, ur, m color, −um);
+			V3 new_hitPoint = v3_add(hitPoint,v3_scale(um,lowestT));
+			V3 m_color = shade(hitObjectIndex, new_hitPoint, um, level++);
+			color = directshade(objectIndex, hitPoint, ur, m_color, v3_scale(um,-1));
 		}
+		// Has to do with illumination....
 		for(int j = 0; j < lightCount; j++)
-			if(light i is visible from x)
-				color += directshade(o, x, ur, light[i].color,light[i].direction);
+		{
+			//if(light i is visible from x)
+			color = v3_add(color,directshade(objectIndex, hitPoint, ur, lights[j]->color,lights[j]->direction));
+		}
 		return color;
 	}
+}
+
+V3 reflection_vector(V3 hitPoint, int objectIndex, V3 ur)
+{
+	return hitPoint;
+}
+
+V3 directshade(int hitObjectIndex, V3 hitPoint, V3 ur, V3 m_color, V3 negative_um)
+{
+	V3 color = malloc(sizeof(double)*3);
+    color[0] = backgroundColorR*ambientIntensity; // ambient color R;
+    color[1] = backgroundColorG*ambientIntensity; // ambient color G;
+    color[2] = backgroundColorB*ambientIntensity; // ambient color B;
+
+    return color;
+
 }
 
 V3 local_illumination(int hitObjectIndex, V3 r0, V3 ur)

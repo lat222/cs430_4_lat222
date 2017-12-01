@@ -81,7 +81,9 @@ Pixel* raycast(FILE* fp, int width, int height);
 // returns the int index of the nearest hit object from objects
 int shoot(V3 rayVector);
 
-V3 shade(int objectIndex, V3 x, V3 ur, int level);
+V3 shade(int objectIndex, V3 hitPoint, V3 ur, int level);
+V3 reflection_vector(V3 hitPoint, int objectIndex, V3 ur);
+V3 directshade(int hitObjectIndex, V3 hitPoint, V3 ur, V3 m_color, V3 negative_um);
 
 // sets a pixel's color
 V3 local_illumination(int hitObjectIndex, V3 r0, V3 ur);
