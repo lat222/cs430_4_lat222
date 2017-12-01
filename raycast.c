@@ -122,7 +122,7 @@ V3 shade(int objectIndex, V3 hitPoint, V3 ur, int level)
 	else
 	{
 		// add to the color the local illumination
-		color = v3_add(color,illumination(hitPoint,objectIndex));
+		//color = v3_add(color,illumination(hitPoint,objectIndex));
 
 		// check if the object is reflective
 		if(objects[objectIndex]->rflec > 0.0)
