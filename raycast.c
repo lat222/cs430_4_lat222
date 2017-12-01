@@ -337,13 +337,17 @@ double specular_reflection(double lightColor, double specularColor, double specu
 double frad(double lightDistance, double a0, double a1, double a2)
 {
 	// return 1 when lightDistance is INFINITY or when might divide by 0
-	if(lightDistance == INFINITY || (a2 == 0 && a1 == 0 && a0 == 0)) return 1.0;
-	else return 1/(a2*lightDistance*lightDistance + a1 * lightDistance + a0);
+	if(isnan(lightDistance) || isinf(lightDistance) || ((fabs(a2-0.0)<epsilon) && (fabs(a1-0.0)<epsilon) && (fabs(a0-0.0)<epsilon))) return 1.0;
+	else
+	{
+		//printf("a2 = %.02f, a1 = %.02f, a0 = %.02f, ld = %.02f\t",a2,a1,a0,lightDistance);
+		return 1/(a2*lightDistance*lightDistance + a1 * lightDistance + a0);
+	}
 }
 
 double fang(double angularA0, double theta, V3 v0, V3 vl)
 {
-	if(theta == 0) return 1.0; // not a spotlight
+	if(fabs(theta-0.0)<epsilon) return 1.0; // not a spotlight
 	else if(theta < to_degrees(acos(v3_dot(v0, vl)))) return 0.0; // not within spotlight
 	else return pow(v3_dot(v0,vl),angularA0);
 }
