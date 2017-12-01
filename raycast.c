@@ -122,7 +122,7 @@ V3 shade(int objectIndex, V3 hitPoint, V3 ur, int level)
 	else
 	{
 		// add to the color the local illumination
-		color = v3_add(color,local_illumination(hitPoint,objectIndex));
+		color = v3_add(color,illumination(hitPoint,objectIndex));
 
 		// check if the object is reflective
 		if(objects[objectIndex]->rflec > 0.0)
@@ -225,7 +225,7 @@ V3 direct_shade(int hitObjectIndex, V3 hitPoint, V3 ur, V3 m_color, V3 negative_
     return color;
 }
 
-V3 local_illumination(V3 hitPoint,int hitObjectIndex)
+V3 illumination(V3 hitPoint,int hitObjectIndex)
 {
 	V3 color = malloc(sizeof(double)*3);
     color[0] = backgroundColorR*ambientIntensity; // ambient color R;
@@ -234,23 +234,11 @@ V3 local_illumination(V3 hitPoint,int hitObjectIndex)
 
     if(hitObjectIndex != -1)
     {
-    	float closest_t;
-      	if(objects[hitObjectIndex]->type == 'p') closest_t = ray_plane_intersection(ur,objects[hitObjectIndex]);
-      	else if(objects[hitObjectIndex]->type == 's') closest_t = ray_sphere_intersection(ur,objects[hitObjectIndex]);
-      	else
-      	{
-      		fprintf(stderr, "ERROR: Objects must be of type Plane or Sphere\n");
-      		exit(0);
-      	}
-    	V3 R0n = v3_add(v3_scale(ur,closest_t), r0); // location of current object pixel
-
-    	// TODO: find current object normal
-
 
 	    for (int j = 0; j < lightCount; j++ ) 
 	    {
 
-	    	 V3 Rcn = malloc(sizeof(double)*3); // ray to the camera
+	    	V3 Rcn = malloc(sizeof(double)*3); // ray to the camera
 		   	Rcn = v3_subtract(r0,hitPoint);
 		   	Rcn = v3_unit(Rcn[0],Rcn[1],Rcn[2]);
 
@@ -258,29 +246,35 @@ V3 local_illumination(V3 hitPoint,int hitObjectIndex)
 		   	if(objects[hitObjectIndex]->type == 'p') objectNormal = objects[hitObjectIndex]->normal;
 		   	else objectNormal = v3_subtract(hitPoint,objects[hitObjectIndex]->position);
 		   	objectNormal = v3_unit(objectNormal[0],objectNormal[1],objectNormal[2]);
+
 	      	// Shadow test
-	    	V3 Rdn = v3_subtract(lights[j]->position, R0n); // vector from that location to light
+	    	V3 Rdn = v3_subtract(lights[j]->position, hitPoint); // vector from that location to light
 	    	Rdn = v3_unit(Rdn[0],Rdn[1],Rdn[2]); // make this a unit vector
 
-	    	float lightDistance = v3_distance(lights[j]->position,R0n); // calculate distance to light
+	    	float lightDistance = v3_distance(lights[j]->position,hitPoint); // calculate distance to light
 
 	    	// vector from light to object
-	    	V3 v0 = v3_subtract(R0n,lights[j]->position);
+	    	V3 v0 = v3_subtract(hitPoint,lights[j]->position);
 	    	v0 = v3_unit(v0[0],v0[1],v0[2]);
 
 	    	// unit vector of the light's direction vector
 	 		V3 vl = v3_unit(lights[j]->direction[0],lights[j]->direction[1],lights[j]->direction[2]);
 
-	 		// TODO: reflection vector??
+	 		//reflection vector
+	 		V3 reflection = reflection_vector(v0,objectNormal);
 
 	      	int shadow = -1;
-			double t = -1; // no intersection so far
+			double t = INFINITY; // no intersection so far
 			// loop through the entire linked list of objects and set t to the closest intersected object
 			for(int i = 0; i < objectCount; i++ )
 			{
 
 				if(i==hitObjectIndex) continue;
-				// TODO: change Rdn in ray_sphere_intersections to deal with reflection???
+
+				// to avoid static, move ray a little bit so just add a small amount to it
+				V3 new_hitPoint = v3_scale(Rdn,epsilon);
+				new_hitPoint = v3_add(new_hitPoint,hitPoint);
+
 				// check if the object intersects with the vector
 				if(objects[i]->type == 's') t = ray_sphere_intersection(Rdn,objects[i]);
 				else if(objects[i]->type == 'p') t = ray_plane_intersection(Rdn,objects[i]);
@@ -290,7 +284,7 @@ V3 local_illumination(V3 hitPoint,int hitObjectIndex)
 					exit(0);
 				}
 
-				if(t <= lightDistance && t > 0)	// something is casting a shadow over the object
+				if(t <= lightDistance && t > 0 && t != INFINITY)	// something is casting a shadow over the object
 				{
 					shadow = 1;
 					break;
@@ -299,16 +293,21 @@ V3 local_illumination(V3 hitPoint,int hitObjectIndex)
 			// there is nothing casting a shadow over the object
 	      	if (shadow == -1) 
 	      	{
-				// TODO: find the diffuse and specular reflection
-				V3 diffuse = objects[hitObjectIndex]->diffuse_color; // uses object's diffuse color
-				V3 specular = objects[hitObjectIndex]->specular_color; // uses object's specular color
+	      		double diffuseFactor = v3_dot(objectNormal,Rdn);
+				double specularFactor = v3_dot(reflection,Rcn);
 
 				double foundFrad = frad(lightDistance, lights[j]->radialA0,lights[j]->radialA1,lights[j]->radialA2);
 				double foundFang = fang(lights[j]->angularA0,lights[j]->theta,v0,vl);
 
-				color[0] += foundFrad*foundFang*(diffuse[0] + specular[0]);
-				color[1] += foundFrad*foundFang*(diffuse[1] + specular[1]);
-				color[2] += foundFrad*foundFang*(diffuse[2] + specular[2]);
+				color[0] += foundFrad*foundFang*(
+					diffuse_reflection(lights[j]->color[0],objects[hitObjectIndex]->diffuse_color[0],diffuseFactor) + 
+					specular_reflection(lights[j]->color[0],objects[hitObjectIndex]->specular_color[0],specularFactor,diffuseFactor));
+				color[1] += foundFrad*foundFang*(
+					diffuse_reflection(lights[j]->color[1],objects[hitObjectIndex]->diffuse_color[1],diffuseFactor) + 
+					specular_reflection(lights[j]->color[1],objects[hitObjectIndex]->specular_color[1],specularFactor,diffuseFactor));
+				color[2] += foundFrad*foundFang*(
+					diffuse_reflection(lights[j]->color[2],objects[hitObjectIndex]->diffuse_color[2],diffuseFactor) + 
+					specular_reflection(lights[j]->color[2],objects[hitObjectIndex]->specular_color[2],specularFactor,diffuseFactor));
 
 			}
 		}

@@ -25,6 +25,8 @@
 
 #define maxRecursionLevel 7
 
+#define epsilon 0.000001
+
 typedef double* V3;
 
 typedef struct Pixel {
@@ -86,7 +88,7 @@ V3 reflection_vector(V3 vector1, V3 vector2);
 V3 direct_shade(int hitObjectIndex, V3 hitPoint, V3 ur, V3 m_color, V3 negative_um);
 
 // sets a pixel's color
-V3 local_illumination(V3 hitPoint, int hitObjectIndex);
+V3 illumination(V3 hitPoint, int hitObjectIndex);
 
 double diffuse_reflection(double lightColor, double diffuseColor, double diffuseFactor);
 double specular_reflection(double lightColor, double specularColor, double specularFactor, double diffuseFactor);
