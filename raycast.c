@@ -31,8 +31,32 @@ Pixel* raycast(FILE* fp, int width, int height)
 			double px = cameraX - worldWidth / 2 + pixwidth * (columnCounter + 0.5); // x coord of column
 			double pz = cameraZ-1; // z coord is on screen
 			V3 ur = v3_unit(px,py,pz); // unit ray vector
-			int hitObjectIndex = shoot(ur);
-			if(hitObjectIndex == -1)
+			int hitObjectIndex = -1; // no object hit so the index is a negative or impossible one
+
+			// does shoot() but allows to still access t afterwards
+			int hitObjectIndex = -1;
+			double lowestT = INFINITY; // no intersection so far
+			// loop through the entire linked list of objects and set t to the closest intersected object
+			for(int i = 0; i < objectCount; i++ )
+			{
+				double result = INFINITY;
+				// check if the object intersects with the vector
+				if(objects[i]->type == 's') result = ray_sphere_intersection(rayVector,objects[i]);
+				else if(objects[i]->type == 'p') result = ray_plane_intersection(rayVector,objects[i]);
+				else
+				{
+					fprintf(stderr, "ERROR: Objects can only be type sphere, plane, or light\n");
+					exit(0);
+				}
+
+				if(result > 0 && result < lowestT)	// this intersection is less than t is already so set t to this result and set hitobject to this object
+				{
+					lowestT = result;
+					hitObjectIndex = i;
+				}
+			}
+	
+			if(hitObjectIndex == -1) // did not hit anything so make pixels the backgroun color
 			{
 				pixMap[rowCounter*height+columnCounter] = malloc(sizeof(double)*3);
 				pixMap[rowCounter*height+columnCounter][0] = backgroundColorR*ambientIntensity;
@@ -41,7 +65,11 @@ Pixel* raycast(FILE* fp, int width, int height)
 			}
 			else
 			{
-				V3 color = illuminate(hitObjectIndex,r0,ur,);
+				V3 hitPoint = v3_scale(ur,lowestT);
+				hitpoint = v3_dot(r0,hitPoint);
+
+				// V3 color = shade(hitObjectIndex,hitPoint,ur,0)
+				V3 color = local_illumination(hitObjectIndex,r0,ur);
 
 				pixMap[rowCounter*height+columnCounter] = malloc(sizeof(double)*3);
 				pixMap[rowCounter*height+columnCounter][0] = color[0];
@@ -81,14 +109,28 @@ int shoot(V3 rayVector)
 	return hitObjectIndex; // should only be a postive number or -1
 }
 
-V3 shade(objectid o, position x, vector ur, int level){
-	if(level > max recursion level)
-		return black;
+V3 shade(int objectIndex, V3 x, V3 ur, int level)
+{
+	if(level > maxRecursionLevel)
+	{
+		backgroundColor = malloc(sizeof(double)*3);
+		backgroundColor[0] = backgroundColorR*ambientIntensity; // ambient color R;
+    	backgroundColor[1] = backgroundColorG*ambientIntensity; // ambient color G;
+    	backgroundColor[2] = backgroundColorB*ambientIntensity; // ambient color B;
+		return backgroundColor;
+	}
 	else
 	{
 		um = reflection vector(x, o, ur);
-		(om, t) = shoot(x, um);
-		if(t == INFINITY) color = background color;
+		t = shoot(x, um);
+		if(t == -1)
+		{
+			backgroundColor = malloc(sizeof(double)*3);
+			backgroundColor[0] = backgroundColorR*ambientIntensity; // ambient color R;
+	    	backgroundColor[1] = backgroundColorG*ambientIntensity; // ambient color G;
+	    	backgroundColor[2] = backgroundColorB*ambientIntensity; // ambient color B;
+			return backgroundColor;
+		}
 		else
 		{
 			m color = shade(om, x + t * um, um, level + 1);
@@ -101,12 +143,12 @@ V3 shade(objectid o, position x, vector ur, int level){
 	}
 }
 
-V3 illuminate(int hitObjectIndex, V3 r0, V3 ur, int pixMapIndex)
+V3 local_illumination(int hitObjectIndex, V3 r0, V3 ur)
 {
 	V3 color = malloc(sizeof(double)*3);
-    color[0] = backgroundColorR; // ambient color R;
-    color[1] = backgroundColorG; // ambient color G;
-    color[2] = backgroundColorB; // ambient color B;
+    color[0] = backgroundColorR*ambientIntensity; // ambient color R;
+    color[1] = backgroundColorG*ambientIntensity; // ambient color G;
+    color[2] = backgroundColorB*ambientIntensity; // ambient color B;
 
     if(hitObjectIndex != -1)
     {

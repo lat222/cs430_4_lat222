@@ -23,6 +23,8 @@
 #define diffuseIntensity 1
 #define specularIntensity 1
 
+#define maxRecursionLevel 7
+
 typedef double* V3;
 
 typedef struct Pixel {
@@ -79,8 +81,10 @@ Pixel* raycast(FILE* fp, int width, int height);
 // returns the int index of the nearest hit object from objects
 int shoot(V3 rayVector);
 
+V3 shade(int objectIndex, V3 x, V3 ur, int level);
+
 // sets a pixel's color
-V3 illuminate(int hitObjectIndex, V3 r0, V3 ur, int pixMapIndex);
+V3 local_illumination(int hitObjectIndex, V3 r0, V3 ur);
 
 double frad(double lightDistance, double a0, double a1, double a2);
 double fang(double angularA0, double theta, V3 v0, V3 vl);
