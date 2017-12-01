@@ -19,9 +19,9 @@
 #define shininess 20
 
 // could be 0 to 100
-#define ambientIntensity 1
-#define diffuseIntensity 1
-#define specularIntensity 1
+#define ambientIntensity 1.0
+#define diffuseIntensity 1.0
+#define specularIntensity 1.0
 
 #define maxRecursionLevel 7
 
@@ -82,11 +82,14 @@ Pixel* raycast(FILE* fp, int width, int height);
 int shoot(V3 rayVector);
 
 V3 shade(int objectIndex, V3 hitPoint, V3 ur, int level);
-V3 reflection_vector(V3 hitPoint, int objectIndex, V3 ur);
-V3 directshade(int hitObjectIndex, V3 hitPoint, V3 ur, V3 m_color, V3 negative_um);
+V3 reflection_vector(V3 vector1, V3 vector2);
+V3 direct_shade(int hitObjectIndex, V3 hitPoint, V3 ur, V3 m_color, V3 negative_um);
 
 // sets a pixel's color
-V3 local_illumination(int hitObjectIndex, V3 r0, V3 ur);
+V3 local_illumination(V3 hitPoint, int hitObjectIndex);
+
+double diffuse_reflection(double lightColor, double diffuseColor, double diffuseFactor);
+double specular_reflection(double lightColor, double specularColor, double specularFactor, double diffuseFactor);
 
 double frad(double lightDistance, double a0, double a1, double a2);
 double fang(double angularA0, double theta, V3 v0, V3 vl);

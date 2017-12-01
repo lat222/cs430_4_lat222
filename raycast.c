@@ -67,7 +67,7 @@ Pixel* raycast(FILE* fp, int width, int height)
 				V3 hitPoint = v3_scale(ur,lowestT);
 				hitPoint = v3_add(r0,hitPoint);
 
-				V3 color = shade(hitObjectIndex,hitPoint,ur,0)
+				V3 color = shade(hitObjectIndex,hitPoint,ur,0);
 
 				//pixMap[rowCounter*height+columnCounter] = malloc(sizeof(Pixel));
 				pixMap[rowCounter*height+columnCounter].R = color[0];
@@ -109,7 +109,7 @@ int shoot(V3 rayVector)
 
 V3 shade(int objectIndex, V3 hitPoint, V3 ur, int level)
 {
-	color = malloc(sizeof(double)*3);
+	V3 color = malloc(sizeof(double)*3);
 	color[0] = backgroundColorR*ambientIntensity; // ambient color R;
 	color[1] = backgroundColorG*ambientIntensity; // ambient color G;
 	color[2] = backgroundColorB*ambientIntensity; // ambient color B;
@@ -127,7 +127,7 @@ V3 shade(int objectIndex, V3 hitPoint, V3 ur, int level)
 		// check if the object is reflective
 		if(objects[objectIndex]->rflec > 0.0)
 		{
-			V3 um = reflection_vector(hitPoint, objectIndex, ur);
+			V3 um = reflection_vector(hitPoint, ur);
 
 			// call shoot but still access t
 			int hitObjectIndex = -1; // no object hit so the index is a negative or impossible one
@@ -166,9 +166,9 @@ V3 shade(int objectIndex, V3 hitPoint, V3 ur, int level)
 				V3 m_color = shade(hitObjectIndex, new_hitPoint, um, level++);
 				m_color = v3_scale(m_color,objects[objectIndex]->rflec); // scale the color by the object's reflectivity
 				// based on the reflected color above add shading
-				color = v3_add(color,directshade(objectIndex, hitPoint, ur, m_color, v3_scale(um,-1)));
+				color = v3_add(color,direct_shade(objectIndex, hitPoint, ur, m_color, v3_scale(um,-1)));
 				// add the reflected color
-				color = v3_add(color,m_color)
+				color = v3_add(color,m_color);
 			}
 		}
 
@@ -180,23 +180,52 @@ V3 shade(int objectIndex, V3 hitPoint, V3 ur, int level)
 	}
 }
 
-V3 reflection_vector(V3 hitPoint, int objectIndex, V3 ur)
+// returns the reflection of vector1 across vector2
+V3 reflection_vector(V3 vector1, V3 vector2)
 {
-	return hitPoint;
+	V3 reflectionVector = malloc(sizeof(double)*3);
+	reflectionVector = v3_scale(vector2,2*v3_dot(vector2,vector1));
+	reflectionVector = v3_subtract(vector1,reflectionVector);
+	reflectionVector = v3_unit(reflectionVector[0],reflectionVector[1],reflectionVector[2]);
+	return reflectionVector;
 }
 
-V3 directshade(int hitObjectIndex, V3 hitPoint, V3 ur, V3 m_color, V3 negative_um)
+V3 direct_shade(int hitObjectIndex, V3 hitPoint, V3 ur, V3 m_color, V3 negative_um)
 {
 	V3 color = malloc(sizeof(double)*3);
     color[0] = backgroundColorR*ambientIntensity; // ambient color R;
     color[1] = backgroundColorG*ambientIntensity; // ambient color G;
     color[2] = backgroundColorB*ambientIntensity; // ambient color B;
 
-    return color;
+    V3 Rcn = malloc(sizeof(double)*3); // ray to the camera
+   	Rcn = v3_subtract(r0,hitPoint);
+   	Rcn = v3_unit(Rcn[0],Rcn[1],Rcn[2]);
 
+   	V3 objectNormal;
+   	if(objects[hitObjectIndex]->type == 'p') objectNormal = objects[hitObjectIndex]->normal;
+   	else objectNormal = v3_subtract(hitPoint,objects[hitObjectIndex]->position);
+   	objectNormal = v3_unit(objectNormal[0],objectNormal[1],objectNormal[2]);
+
+   	V3 Rdn = v3_subtract(ur, hitPoint); // vector from that location to light
+	Rdn = v3_unit(Rdn[0],Rdn[1],Rdn[2]); // make this a unit vector
+
+	V3 reflection = reflection_vector(negative_um,objectNormal); // reflection of the ray of light across the normal
+
+	double diffuseFactor = v3_dot(objectNormal,Rdn);
+	double specularFactor = v3_dot(reflection,Rcn);
+
+	color[0] += diffuse_reflection(m_color[0],objects[hitObjectIndex]->diffuse_color[0],diffuseFactor);
+	color[1] += diffuse_reflection(m_color[1],objects[hitObjectIndex]->diffuse_color[1],diffuseFactor);
+	color[2] += diffuse_reflection(m_color[2],objects[hitObjectIndex]->diffuse_color[2],diffuseFactor);
+
+	color[0] += specular_reflection(m_color[0],objects[hitObjectIndex]->specular_color[0],specularFactor,diffuseFactor);
+	color[1] += specular_reflection(m_color[1],objects[hitObjectIndex]->specular_color[1],specularFactor,diffuseFactor);
+	color[2] += specular_reflection(m_color[2],objects[hitObjectIndex]->specular_color[2],specularFactor,diffuseFactor);
+
+    return color;
 }
 
-V3 local_illumination(int hitObjectIndex, V3 r0, V3 ur)
+V3 local_illumination(V3 hitPoint,int hitObjectIndex)
 {
 	V3 color = malloc(sizeof(double)*3);
     color[0] = backgroundColorR*ambientIntensity; // ambient color R;
@@ -220,6 +249,15 @@ V3 local_illumination(int hitObjectIndex, V3 r0, V3 ur)
 
 	    for (int j = 0; j < lightCount; j++ ) 
 	    {
+
+	    	 V3 Rcn = malloc(sizeof(double)*3); // ray to the camera
+		   	Rcn = v3_subtract(r0,hitPoint);
+		   	Rcn = v3_unit(Rcn[0],Rcn[1],Rcn[2]);
+
+		   	V3 objectNormal;
+		   	if(objects[hitObjectIndex]->type == 'p') objectNormal = objects[hitObjectIndex]->normal;
+		   	else objectNormal = v3_subtract(hitPoint,objects[hitObjectIndex]->position);
+		   	objectNormal = v3_unit(objectNormal[0],objectNormal[1],objectNormal[2]);
 	      	// Shadow test
 	    	V3 Rdn = v3_subtract(lights[j]->position, R0n); // vector from that location to light
 	    	Rdn = v3_unit(Rdn[0],Rdn[1],Rdn[2]); // make this a unit vector
@@ -283,6 +321,19 @@ V3 local_illumination(int hitObjectIndex, V3 r0, V3 ur)
     return color;
 }
 
+double diffuse_reflection(double lightColor, double diffuseColor, double diffuseFactor)
+{
+	// check to make sure we are not multiplying by 0
+	if(diffuseFactor > 0) return diffuseIntensity * lightColor * diffuseColor * diffuseFactor;
+	return 0;
+}
+
+double specular_reflection(double lightColor, double specularColor, double specularFactor, double diffuseFactor)
+{
+	// check to make sure we are not multiplying by zero
+	if(specularFactor > 0 && diffuseFactor > 0) return specularIntensity * lightColor * specularColor * pow(specularFactor,shininess);
+	return 0;
+}
 
 double frad(double lightDistance, double a0, double a1, double a2)
 {
