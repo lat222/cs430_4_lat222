@@ -32,7 +32,12 @@ Pixel* raycast(FILE* fp, int width, int height)
 			double pz = cameraZ-1; // z coord is on screen
 			V3 ur = v3_unit(px,py,pz); // unit ray vector
 			int hitObjectIndex = shoot(ur);
-			illuminate(hitObjectIndex,r0,ur,rowCounter*height+columnCounter);		
+			V3 color = illuminate(hitObjectIndex,r0,ur,);
+
+			pixMap[rowCounter*height+columnCounter] = malloc(sizeof(double)*3);
+			pixMap[rowCounter*height+columnCounter][0] = color[0];
+			pixMap[rowCounter*height+columnCounter][1] = color[1];
+			pixMap[rowCounter*height+columnCounter][2] = color[2];
 		}
     }
 
@@ -66,14 +71,33 @@ int shoot(V3 rayVector)
 	return hitObjectIndex; // should only be a postive number or -1
 }
 
-void illuminate(int hitObjectIndex, V3 r0, V3 ur, int pixMapIndex)
+V3 shade(objectid o, position x, vector ur, int level){
+	if(level > max recursion level)
+		return black;
+	else
+	{
+		um = reflection vector(x, o, ur);
+		(om, t) = shoot(x, um);
+		if(t == INFINITY) color = background color;
+		else
+		{
+			m color = shade(om, x + t * um, um, level + 1);
+			color = directshade(o, x, ur, m color, −um);
+		}
+		for(int j = 0; j < lightCount; j++)
+			if(light i is visible from x)
+				color += directshade(o, x, ur, light[i].color,light[i].direction);
+		return color;
+	}
+}
+
+V3 illuminate(int hitObjectIndex, V3 r0, V3 ur, int pixMapIndex)
 {
 	V3 color = malloc(sizeof(double)*3);
-    color[0] = backgroundColorR; // ambient_color[0];
-    color[1] = backgroundColorG; // ambient_color[1];
-    color[2] = backgroundColorB; // ambient_color[2];
+    color[0] = backgroundColorR; // ambient color R;
+    color[1] = backgroundColorG; // ambient color G;
+    color[2] = backgroundColorB; // ambient color B;
 
-    //if(pixMapIndex % 2 == 0) printf("%d - %d\t",pixMapIndex,hitObjectIndex);
     if(hitObjectIndex != -1)
     {
     	float closest_t;
@@ -147,10 +171,13 @@ void illuminate(int hitObjectIndex, V3 r0, V3 ur, int pixMapIndex)
 		}
 	}
     // The color has now been calculated
-    pixMap[pixMapIndex].R = (unsigned char)(clamp(color[0]));
-    pixMap[pixMapIndex].G = (unsigned char)(clamp(color[1]));
-    pixMap[pixMapIndex].B = (unsigned char)(clamp(color[2]));
+    // So call clamp to make sure they are correctly
+    color[0] = clamp(color[0]);
+    color[1] = clamp(color[1]);
+    color[2] = clamp(color[2]);
+    return color;
 }
+
 
 double frad(double lightDistance, double a0, double a1, double a2)
 {

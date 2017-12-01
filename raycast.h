@@ -75,7 +75,7 @@ Pixel* raycast(FILE* fp, int width, int height);
 int shoot(V3 rayVector);
 
 // sets a pixel's color
-void illuminate(int hitObjectIndex, V3 r0, V3 ur, int pixMapIndex);
+V3 illuminate(int hitObjectIndex, V3 r0, V3 ur, int pixMapIndex);
 
 double frad(double lightDistance, double a0, double a1, double a2);
 double fang(double angularA0, double theta, V3 v0, V3 vl);
