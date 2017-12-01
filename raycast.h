@@ -18,6 +18,11 @@
 
 #define shininess 20
 
+// could be 0 to 100
+#define ambientIntensity 1
+#define diffuseIntensity 1
+#define specularIntensity 1
+
 typedef double* V3;
 
 typedef struct Pixel {

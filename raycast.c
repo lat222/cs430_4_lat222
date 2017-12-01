@@ -32,12 +32,22 @@ Pixel* raycast(FILE* fp, int width, int height)
 			double pz = cameraZ-1; // z coord is on screen
 			V3 ur = v3_unit(px,py,pz); // unit ray vector
 			int hitObjectIndex = shoot(ur);
-			V3 color = illuminate(hitObjectIndex,r0,ur,);
+			if(hitObjectIndex == -1)
+			{
+				pixMap[rowCounter*height+columnCounter] = malloc(sizeof(double)*3);
+				pixMap[rowCounter*height+columnCounter][0] = backgroundColorR*ambientIntensity;
+				pixMap[rowCounter*height+columnCounter][1] = backgroundColorG*ambientIntensity;
+				pixMap[rowCounter*height+columnCounter][2] = backgroundColorB*ambientIntensity;
+			}
+			else
+			{
+				V3 color = illuminate(hitObjectIndex,r0,ur,);
 
-			pixMap[rowCounter*height+columnCounter] = malloc(sizeof(double)*3);
-			pixMap[rowCounter*height+columnCounter][0] = color[0];
-			pixMap[rowCounter*height+columnCounter][1] = color[1];
-			pixMap[rowCounter*height+columnCounter][2] = color[2];
+				pixMap[rowCounter*height+columnCounter] = malloc(sizeof(double)*3);
+				pixMap[rowCounter*height+columnCounter][0] = color[0];
+				pixMap[rowCounter*height+columnCounter][1] = color[1];
+				pixMap[rowCounter*height+columnCounter][2] = color[2];
+			}
 		}
     }
 
@@ -47,12 +57,12 @@ Pixel* raycast(FILE* fp, int width, int height)
 // returns the closest object that intersects with the vector
 int shoot(V3 rayVector)
 {
-	int hitObjectIndex = -1;
-	double lowestT = -1; // no intersection so far
+	int hitObjectIndex = -1; // no object hit so the index is a negative or impossible one
+	double lowestT = INFINITY; // no intersection so far
 	// loop through the entire linked list of objects and set t to the closest intersected object
 	for(int i = 0; i < objectCount; i++ )
 	{
-		double result = -1;
+		double result = INFINITY;
 		// check if the object intersects with the vector
 		if(objects[i]->type == 's') result = ray_sphere_intersection(rayVector,objects[i]);
 		else if(objects[i]->type == 'p') result = ray_plane_intersection(rayVector,objects[i]);
@@ -62,7 +72,7 @@ int shoot(V3 rayVector)
 			exit(0);
 		}
 
-		if(result > 0 && (result < lowestT || lowestT == -1))	// this intersection is less than t is already so set t to this result and set hitobject to this object
+		if(result > 0 && (result < lowestT || lowestT == INFINITY))	// this intersection is less than t is already so set t to this result and set hitobject to this object
 		{
 			lowestT = result;
 			hitObjectIndex = i;
